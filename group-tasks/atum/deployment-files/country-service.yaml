@@ -1,0 +1,71 @@
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+   name: country-svc-configmap
+   namespace: atum
+  data:
+   CS_VERSION: ""
+---
+  apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    name: country-svc-deployment-latest
+    namespace: atum
+    labels:
+      service: cs_api_service
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        name: cs-api-service-selector
+    template:
+      metadata:
+        labels:
+          name: cs-api-service-selector
+          app: cs-api-backend
+      spec:
+        containers:
+          - name: cs-api
+            image: exxcellent/cps-country-service:latest
+            imagePullPolicy: Always
+            ports:
+            - containerPort: 8080
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 82
+            envFrom:
+            - configMapRef:
+                name: country-svc-configmap
+---
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: country-svc-service
+    namespace: atum
+    labels:
+  spec:
+    type: ClusterIP
+    ports:
+      - port: 8080
+        name: api
+        protocol: TCP
+    selector:
+      name: cs-api-service-selector
+---
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: country-svc-ingress
+    namespace: atum
+    annotations:
+      kubernetes.io/ingress.class: traefik
+      traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip
+  spec:
+    rules:
+    - host: 
+      http:
+        paths:
+        - path: /atum-cs/
+          backend:
+            serviceName: country-svc-service
+            servicePort: 8080

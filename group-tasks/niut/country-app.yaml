@@ -1,0 +1,79 @@
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+   # Name der ConfigMap
+   name: country-app-svc-configmap
+   namespace: niut
+  data:
+   # Environment Variable
+   COUNTRY_SERVICE_URL: "http://ae8333ccd462511eaba7d0af1187e991-581492011.eu-central-1.elb.amazonaws.com:8081/niut-cs"
+   CURRENCY_SERVICE_URL: "http://ae8333ccd462511eaba7d0af1187e991-581492011.eu-central-1.elb.amazonaws.com:8081/niut-cu"
+   LANGUAGE_SERVICE_URL: "http://ae8333ccd462511eaba7d0af1187e991-581492011.eu-central-1.elb.amazonaws.com:8081/niut-ls"
+---
+  apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    # Name des Pods
+    name: country-app-svc-deployment
+    # Name des Namespaces
+    namespace: niut
+    # Label zur Identifikation des Pods via Key-Value Paar
+    labels:
+      service: country-app_api_service
+  spec:
+    # Anzahl wie oft der Pod repliziert wird
+    replicas: 1
+    selector:
+      matchLabels:
+        name: country-app-api-service-selector
+    template:
+      metadata:
+        labels:
+          name: country-app-api-service-selector
+      spec:
+        containers:
+          - name: country-app-api
+            # image welches für den Container geladen wird
+            image: exxcellent/cps-country-app-service:niut
+            # wann soll das Image gepullt werden
+            imagePullPolicy: Always
+            ports:
+            # geöffneter Port des Containers
+            - containerPort: 80
+            securityContext:
+            # environment variablen aus Configmap laden
+            envFrom:
+            - configMapRef:
+                name: country-app-svc-configmap
+---
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: country-app-svc-service
+    namespace: niut
+  spec:
+    type: ClusterIP
+    ports:
+      - port: 8484
+        targetPort: 80
+        name: api
+        protocol: TCP
+    selector:
+      name: country-app-api-service-selector
+---
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: country-app-svc-ingress
+    namespace: niut
+    annotations:
+      kubernetes.io/ingress.class: traefik
+  spec:
+    rules:
+    - host: 
+      http:
+        paths:
+        - path: /niut/
+          backend:
+            serviceName: country-app-svc-service
+            servicePort: 8484
