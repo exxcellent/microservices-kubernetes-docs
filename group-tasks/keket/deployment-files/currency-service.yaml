@@ -1,0 +1,70 @@
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+   name: currency-svc-configmap
+   namespace: keket
+  data:
+   CURRENCY_VERSION: ""
+---
+  apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    name: currency-svc-deployment
+    namespace: keket
+    labels:
+      service: currency_api_service
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        name: currency-api-service-selector
+    template:
+      metadata:
+        labels:
+          name: currency-api-service-selector
+          app: currency-api-backend
+      spec:
+        containers:
+          - name: currency-api
+            image: exxcellent/cps-currency-service:latest
+            imagePullPolicy: Always
+            ports:
+            - containerPort: 8081
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 82
+            envFrom:
+            - configMapRef:
+                name: currency-svc-configmap
+---
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: currency-svc-service
+    namespace: keket
+  spec:
+    type: ClusterIP
+    ports:
+      - port: 8081
+        name: api
+        protocol: TCP
+    selector:
+      name: currency-api-service-selector
+---
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: currency-svc-ingress
+    namespace: keket
+    annotations:
+      kubernetes.io/ingress.class: traefik
+      traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip
+  spec:
+    rules:
+    - host: 
+      http:
+        paths:
+        - path: /keket-cu/
+          backend:
+            serviceName: currency-svc-service
+            servicePort: 8081

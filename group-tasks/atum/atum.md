@@ -26,7 +26,7 @@ Um den Status der jeweiligen Services zu sehen, bietet sich auf der linken Seite
 
 ### **Namespace erstellen**
 
-Jede Gruppe kann sich ihren eigenen Namespace erstellen, welcher innerhalb des Clusters eine isolierte Umgebung darstellt. In einem Namespace können Ports, Servicenamen usw. wiederverwendet werden. Diese Option ist z.B. in unserem Workshop sehr wichtig, da jede Gruppe dieselben Services deployed.
+Jede Gruppe kann sich ihren eigenen Namespace erstellen, welcher innerhalb des Clusters eine isolierte Umgebung darstellt. In einem Namespace können Ports, Servicenamen usw. wiederverwendet werden. Diese Option ist z.B. in unserem Workshop sehr wichtig, da jede Gruppe dieselben Services deployed. Nach dem Upload  muss der Namespace selektiert werden. Das dazugehörige Dropdown befindet sich auf der linken Seite unter Namespace. Alle weiteren Ressourcen werden für den jeweiligen Namespace angezeigt, welcher in dem Dropdown ausgewählt ist. Sollte der Namespace nicht direkt im Dropdown erscheinen, kurz warten und das Fenster nochmal aktualisieren.
 
 Ein Namespace wird mit folgender YAML Datei über den `Create` Button angelegt. Um eindeutig zu sein, wird der Gruppenname als Name des Namespaces verwendet. Mit dem `Upload` Button wird die Eingabe bestätigt und der Namespace erstellt.
 
@@ -37,8 +37,6 @@ metadata:
   name: atum
 ```
 
-Nach dem Upload  muss der Namespace selektiert werden. Der Reiter befindet sich auf der linken Seite unter Namespaces. Alle weiteren Ressourcen werden für den jeweiligen Namespace angezeigt, welcher in dem Dropdown ausgewählt ist. Sollte der Namespace nicht direkt im Dropdown erscheinen, kurz warten und das Fenster nochmal aktualisieren.
-
 ## Deployment
 
 In den folgenden Abschnitten werden drei Backend- und ein Frontend-Microservice deployed (Country-App-Frontend, Country-Service, Language-Serivce, Currency-Service). Dies ist jeweils über den Create-Button durchzuführen. Im Anschluss jedes Deployments sollte der Status des Pods überprüft werden.
@@ -47,7 +45,7 @@ In den folgenden Abschnitten werden drei Backend- und ein Frontend-Microservice 
 
 #### Pod
 
-Ein Kubernetes POD ist die kleinste atomare Einheit in Kubernetes und enthält mehrere Container. Die Container sind jeweils über ihre geöffneten Ports erreichbar. Im Deployment-File des Pods sind die Images hinterlegt, welche beim erstellen geladen werden sollen. Ebenfalls können im Deployment-File des Pods verschiedene Environment-Variablen hinterlegt werden, welche dann im Docker Container verfügbar sind. Z.B. sind dies häufig die URL´s der Microservices, welche von diesem Pod angesprochen werden. Die Variablen werden in unserem Fall aus einer Configmap geladen, welche separat deployed werden muss.
+Ein Kubernetes POD ist die kleinste atomare Einheit in Kubernetes und enthält mehrere Container. Die Container sind jeweils über ihre geöffneten Ports erreichbar. Im Deployment-File des Pods sind die Images hinterlegt, welche beim Erstellen geladen werden sollen. Ebenfalls können im Deployment-File des Pods verschiedene Environment-Variablen hinterlegt werden, welche dann im Docker Container verfügbar sind. Z.B. sind dies häufig die URLs der Microservices, welche von diesem Pod angesprochen werden. Die Variablen werden in unserem Fall aus einer Configmap geladen, welche separat deployed werden muss.
 
 In den Deployment-Files dieses Services sind die Files noch durch mehrere Codekommentare versehen, welche die jeweiligen YAML-Deklarationen weiter erklären.
 
@@ -105,7 +103,7 @@ spec:
 
 #### Service
 
-Kubernetes Pods haben einen jederzeit endlichen Lebenszyklus, da sie ständig neu erstellt, gelöscht oder skaliert werden. Der Kubernetes-Service dient deshalb als eine weitere Abstraktionsebene über dem POD. Ein Service nimmt die Anfragen an geöffnetes Ports und leitet diese via Round-Robin Verfahren an die Ports der darunterliegende Pods weiter. Um eine bleibene Namensauflösung zu ermöglichen, ist ein Service beim Kubernetes DNS  hinterlegt. Er kann dann wiefolgt erreicht werden: `servicename.namespace:port`.  
+Der Lebensdauer eines Kubernetes-Pods kann nicht vorhergesagt werden, da sie ständig neu erstellt, gelöscht oder skaliert werden können. Der Kubernetes-Service dient deshalb als eine weitere Abstraktionsebene über dem POD. Ein Service nimmt die Anfragen an geöffnetes Ports und leitet diese via Round-Robin Verfahren an die Ports der darunterliegende Pods weiter. Um eine bleibene Namensauflösung zu ermöglichen, ist ein Service beim Kubernetes DNS  hinterlegt. Er kann dann wie folgt erreicht werden: `servicename.namespace:port`.  
 
 ```
 apiVersion: v1
@@ -246,177 +244,11 @@ spec:
 
 ### **Language Service Deployment**
 
-#### Pod
-
-```
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: language-svc-configmap
-  namespace: atum
-data:
-  LANGUAGE_VERSION: ""
-```
-
-```
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: language-svc-deployment
-  namespace: atum
-  labels:
-    service: language_api_service
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      name: language-api-service-selector
-  template:
-    metadata:
-      labels:
-        name: language-api-service-selector
-        app: language-api-backend
-    spec:
-      containers:
-        - name: language-api
-          image: exxcellent/cps-language-service:latest
-          imagePullPolicy: Always
-          ports:
-          - containerPort: 8082
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 82
-          envFrom:
-          - configMapRef:
-              name: language-svc-configmap
-```
-
-#### Service
-
-```
-apiVersion: v1
-kind: Service
-metadata:
-  name: language-svc-service
-  namespace: atum
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8082
-      name: api
-      protocol: TCP
-  selector:
-    name: language-api-service-selector
-```
-
-#### Ingress
-
-```
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: language-svc-ingress
-  namespace: atum
-  annotations:
-    kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip
-spec:
-  rules:
-  - host: 
-    http:
-      paths:
-      - path: /atum-ls/
-        backend:
-          serviceName: language-svc-service
-          servicePort: 8082
-```
+Der Language-Service wird als komplette YAML-Datei deployed. Hiefür sind die Deployment-Deklarationen für Services, Ingress, Deployments, usw. in ein gemeinsames Deployment-File geschrieben. Innerhalb der Datei werden sie jeweils mit drei `---` als Trennzeichen unterteilt. Im Gruppenverzeichnis unter `deployment-files` ist das Deployment-File des Language-Services zu finden. Der komplette Inhalt der Datei kann kopiert und ebenfalls über `Create` hinzugefügt werden. Nun werden alle benötigten Konfigurationen für den Service erstellt und bereitgestellt.
 
 ### **Currency Service Deployment**
 
-#### Pod
-
-```
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: currency-svc-configmap
-  namespace: atum
-data:
-  CURRENCY_VERSION: ""
-```
-
-```
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: currency-svc-deployment
-  namespace: atum
-  labels:
-    service: currency_api_service
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      name: currency-api-service-selector
-  template:
-    metadata:
-      labels:
-        name: currency-api-service-selector
-        app: currency-api-backend
-    spec:
-      containers:
-        - name: currency-api
-          image: exxcellent/cps-currency-service:latest
-          imagePullPolicy: Always
-          ports:
-          - containerPort: 8081
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 82
-          envFrom:
-          - configMapRef:
-              name: currency-svc-configmap
-```
-
-#### Service
-
-```
-apiVersion: v1
-kind: Service
-metadata:
-  name: currency-svc-service
-  namespace: atum
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8081
-      name: api
-      protocol: TCP
-  selector:
-    name: currency-api-service-selector
-```
-
-#### Ingress
-
-```
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: currency-svc-ingress
-  namespace: atum
-  annotations:
-    kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip
-spec:
-  rules:
-  - host: 
-    http:
-      paths:
-      - path: /atum-cu/
-        backend:
-          serviceName: currency-svc-service
-          servicePort: 8081
-```
+Der Currency-Service wird ebenfalls mithilfe einer kompletten YAML-Datei deployed. Für dieses Deployment wird allerdings nicht das textbasierte Deployment verwendet, sondern die Datei via `Create` hochgeladen. Hierzu auf den `Create` Button klicken und `CREATE FROM FILE` auswählen. Als Zieldatei wird im Gruppenverzeichnis unter `deployment-files` das Currency-Deployment-ile verwendet. 
 
 ## Möglichkeiten im Fehlerfall
 
